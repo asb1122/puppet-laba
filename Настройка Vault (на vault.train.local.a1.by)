@@ -1,0 +1,19 @@
+Настройка Vault (на vault.train.local.a1.by)
+
+скачать архив с https://developer.hashicorp.com/vault/install
+
+копироуем архив через jump mgmt сервер
+scp C:\Users\artsiom_bat\ISO\vault_2.2.0_linux_amd64.zip admin@178.163.233.114:/tmp/
+
+перекидываем на vault
+scp vault_2.2.0_linux_amd64.zip admin@178.163.233.114:/tmp/
+
+# Распаковать
+unzip vault_1.18.3_linux_amd64.zip
+
+# Переместить в PATH
+sudo mv vault /usr/local/bin/
+vault version
+
+результат
+#Vault v2.2.0 (2891bfd23893ebd302307050edaf03d871ea8351), built 2026-10-14T15:24:08Z
