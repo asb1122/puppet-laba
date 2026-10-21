@@ -1,0 +1,13 @@
+sudo dnf install -y https://yum.puppet.com/puppet8-release-el-9.noarch.rpm
+
+sudo dnf install -y puppet-agent
+
+echo 'export PATH=/opt/puppetlabs/bin:$PATH' | sudo tee /etc/profile.d/puppet-path.sh
+
+source /etc/profile.d/puppet-path.sh
+
+puppet --version
+
+sudo /opt/puppetlabs/bin/puppet config set server puppet2.train.local.a1.by --section main
+
+sudo /opt/puppetlabs/bin/puppet config print server
