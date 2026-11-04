@@ -11,3 +11,53 @@ puppet --version
 sudo /opt/puppetlabs/bin/puppet config set server puppet2.train.local.a1.by --section main
 
 sudo /opt/puppetlabs/bin/puppet config print server
+
+======================================================================================================
+УСТАНОВКА АГЕНТА
+======================================================================================================
+dnf install nano
+sudo dnf install nano
+sudo dnf install -y https://yum.puppet.com/puppet8-release-el-9.noarch.rpm
+sudo dnf install -y puppet-agent
+sudo /opt/puppetlabs/bin/puppet config set server puppet2.train.local.a1.by --section main
+sudo /opt/puppetlabs/bin/puppet config set certname clickhouse.train.local.a1.by --section main
+sudo /opt/puppetlabs/bin/puppet config set environment production --section agent
+sudo firewall-cmd --permanent --add-port=22/tcp
+sudo firewall-cmd --permanent --add-port=3000/tcp
+sudo firewall-cmd --permanent --add-port=8428/tcp
+sudo firewall-cmd --permanent --add-port=9090/tcp
+sudo firewall-cmd --permanent --add-port=9100/tcp
+sudo firewall-cmd --permanent --add-port=8140/tcp
+sudo firewall-cmd --reload
+sudo firewall-cmd --list-ports
+
+======================================================================================================
+СОЗДАНИЕ И ПОДПИСЬ СЕРТИФИКАТОВ
+агент
+sudo /opt/puppetlabs/bin/puppet agent -t
+
+на сервере смотрим списко сертификатов на подпись
+sudo puppetserver ca list
+
+sudo puppetserver ca sign \
+--certname mon.train.local.a1.by
+
+sudo puppetserver ca sign \
+--certname clickhouse.train.local.a1.by
+агент повторить
+sudo /opt/puppetlabs/bin/puppet agent -t
+
+========================================================================================================
+
+ДЕПЛОЙ ИЗМЕНЕНИЙ НА СЕРВЕРЕ
+========================================================================================================
+cd /tmp/control-repo
+git add site-modules/profile/manifests/vault_test.pp
+git commit -m "Debug: inspect raw value from hiera_vault"
+git push origin production
+sudo -u puppet /usr/local/bin/r10k deploy environment -p -v
+или
+sudo r10k deploy environment production -p -v
+sudo systemctl restart puppetserver
+
+
