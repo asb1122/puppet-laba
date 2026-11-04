@@ -1,0 +1,173 @@
+Vault Deployment and Hiera Integration
+Purpose
+Deploy HashiCorp Vault for secure secret storage and integrate it with Puppet Hiera.
+
+Architecture
+Puppet Server (puppet2)
+        |
+        | Hiera Vault Lookup
+        |
+        v
+Vault Server (vault)
+Vault Installation
+Download Vault
+cd /tmp
+
+wget https://releases.hashicorp.com/vault/1.18.3/vault_1.18.3_linux_amd64.zip
+
+unzip vault_1.18.3_linux_amd64.zip
+
+sudo mv vault /usr/local/bin/
+
+vault --version
+Create Service User
+sudo useradd --system \
+  --home /opt/vault \
+  --shell /sbin/nologin \
+  vault
+Create Directories
+sudo mkdir -p \
+  /opt/vault/data \
+  /opt/vault/tls \
+  /etc/vault.d
+
+sudo chown -R vault:vault /opt/vault
+TLS Configuration
+Place certificates:
+
+vault.crt
+vault.key
+ca.crt
+in:
+
+/opt/vault/tls/
+Set permissions:
+
+sudo chown vault:vault /opt/vault/tls/*
+sudo chmod 600 /opt/vault/tls/vault.key
+Vault Configuration
+File:
+
+/etc/vault.d/vault.hcl
+storage "raft" {
+  path = "/opt/vault/data"
+  node_id = "vault"
+}
+
+listener "tcp" {
+  address       = "0.0.0.0:8200"
+  tls_cert_file = "/opt/vault/tls/vault.crt"
+  tls_key_file  = "/opt/vault/tls/vault.key"
+}
+
+api_addr     = "https://vault.train.local.a1.by:8200"
+cluster_addr = "https://vault.train.local.a1.by:8201"
+
+ui = true
+Systemd Service
+File:
+
+/etc/systemd/system/vault.service
+[Unit]
+Description=HashiCorp Vault
+After=network.target
+
+[Service]
+User=vault
+Group=vault
+
+ExecStart=/usr/local/bin/vault server \
+  -config=/etc/vault.d/vault.hcl
+
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+Enable service:
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now vault
+Vault Initialization
+export VAULT_ADDR=https://vault.train.local.a1.by:8200
+
+vault operator init > vault-init.json
+Store securely:
+
+/root/vault-init.json
+Unseal Vault
+Use 3 of 5 generated keys:
+
+vault operator unseal
+Repeat until:
+
+Sealed: false
+Root Token
+export VAULT_TOKEN=<ROOT_TOKEN>
+Verify:
+
+vault token lookup
+Puppet Policy
+File:
+
+/root/puppet-hiera-policy.hcl
+path "secret/data/puppet/*" {
+  capabilities = ["read", "list"]
+}
+Create policy:
+
+vault policy write puppet-hiera \
+  /root/puppet-hiera-policy.hcl
+Create Puppet Token
+vault token create \
+  -policy=puppet-hiera \
+  -period=720h
+Save token:
+
+/root/puppet-hiera.token
+Puppet Integration
+Store token:
+
+/etc/puppetlabs/puppetserver/vault/token
+Set permissions*
+
+chown puppet:puppet \
+  *etc/puppetlabs/puppetserver/vault/*oken
+
+chmod 600 \
+  /etc/puppetlab*/puppetserver/vault/token
+---*
+
+Hiera Configuration*
+File:
+
+hiera.yaml
+``*yaml
+version: 5
+
+defaults: dtadir: data data_hash: yaml_data hierarchy:
+
+name: "Vault KV v2* lookup_key: hiera_vault otions: address: "https://vault.train.local.a1.by:8200" toen: "/etc/puppetlabs/puppetserver/ault/token" ssl_verify: true strict_mode: true
+
+mou*ts: secret/data/puppet:
+
+  - "%{facts.networking.fqdn}*
+  - "common"
+name: "er-node data" path: "nodes/%{fcts.networking.fqdn}.yaml"
+
+nae: "Common" path: "common.yaml
+
+
+---
+
+## Verification
+
+Check *ault:
+
+```bash
+vault status
+C*eck token:
+
+vault token lo*kup
+Check Puppet catalog comp*lation:
+
+sudo puppet agent*-t
